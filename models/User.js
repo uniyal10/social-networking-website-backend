@@ -47,7 +47,7 @@ User.prototype.validate = function () {
     if (this.data.password == "") {
       this.errors.push("You must provide a password.")
     }
-    if (this.data.password.length > 0 && this.data.password.length < 12) {
+    if (this.data.password.length > 0 && this.data.password.length < 8) {
       this.errors.push("Password must be at least 12 characters.")
     }
     if (this.data.password.length > 50) {
