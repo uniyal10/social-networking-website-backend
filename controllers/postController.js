@@ -43,6 +43,7 @@ exports.apiDelete = function(req, res) {
 }
 
 exports.search = function(req, res) {
+  console.log(req.body.searchTerm)
   Post.search(req.body.searchTerm)
     .then(posts => {
       res.json(posts)

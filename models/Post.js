@@ -4,6 +4,8 @@ const ObjectID = require('mongodb').ObjectID
 const User = require('./User')
 const sanitizeHTML = require('sanitize-html')
 
+postsCollection.createIndex({title: "text", body: "text"})
+
 let Post = function(data, userid, requestedPostId) {
   this.data = data
   this.errors = []
@@ -36,8 +38,8 @@ Post.prototype.create = function() {
     if (!this.errors.length) {
       // save post into database
       postsCollection.insertOne(this.data).then((info) => {
-        resolve(info.ops[0]._id)
-      }).catch(e => {
+        resolve(info.insertedId)
+      }).catch(() => {
         this.errors.push("Please try again later.")
         reject(this.errors)
       })
@@ -58,7 +60,7 @@ Post.prototype.update = function() {
       } else {
         reject()
       }
-    } catch (e) {
+    } catch {
       reject()
     }
   })
@@ -77,7 +79,7 @@ Post.prototype.actuallyUpdate = function() {
   })
 }
 
-Post.reusablePostQuery = function(uniqueOperations, visitorId) {
+Post.reusablePostQuery = function(uniqueOperations, visitorId, finalOperations = []) {
   return new Promise(async function(resolve, reject) {
     let aggOperations = uniqueOperations.concat([
       {$lookup: {from: "users", localField: "author", foreignField: "_id", as: "authorDocument"}},
@@ -88,7 +90,7 @@ Post.reusablePostQuery = function(uniqueOperations, visitorId) {
         authorId: "$author",
         author: {$arrayElemAt: ["$authorDocument", 0]}
       }}
-    ])
+    ]).concat(finalOperations)
 
     let posts = await postsCollection.aggregate(aggOperations).toArray()
 
@@ -121,6 +123,7 @@ Post.findSingleById = function(id, visitorId) {
     ], visitorId)
 
     if (posts.length) {
+      console.log(posts[0])
       resolve(posts[0])
     } else {
       reject()
@@ -145,7 +148,7 @@ Post.delete = function(postIdToDelete, currentUserId) {
       } else {
         reject()
       }    
-    } catch (e) {
+    } catch {
       reject()
     }
   })
@@ -155,9 +158,8 @@ Post.search = function(searchTerm) {
   return new Promise(async (resolve, reject) => {
     if (typeof(searchTerm) == "string") {
       let posts = await Post.reusablePostQuery([
-        {$match: {$text: {$search: searchTerm}}},
-        {$sort: {score: {$meta: "textScore"}}}
-      ])
+        {$match: {$text: {$search: searchTerm}}}
+      ], undefined, [{$sort: {score: {$meta: "textScore"}}}])
       resolve(posts)
     } else { 
       reject()
